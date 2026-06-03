@@ -1,11 +1,14 @@
 import axios from 'axios'
 
-export async function analyzeCode(code, language) {
+const API_BASE_URL = 'http://localhost:5000'
+
+export async function analyzeCode(code, language, type) {
   const response = await axios.post(
-    'http://localhost:5000/analyze',
+    `${API_BASE_URL}/api/analyze`,
     {
       code,
       language,
+      type
     }
   )
 
