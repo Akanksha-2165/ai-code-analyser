@@ -21,7 +21,7 @@ function HistoryPage() {
       const data = await getHistory()
       setHistory(data.history || [])
     } catch (error) {
-      console.error(error)
+      console.error("Gemini Error:", error.message)
     } finally {
       setLoading(false)
     }
@@ -35,7 +35,7 @@ function HistoryPage() {
         prev.filter(item => item.id !== id)
       )
     } catch (error) {
-      console.error(error)
+      console.error("Gemini Error:", error.message)
     }
   }
 
@@ -47,7 +47,7 @@ function HistoryPage() {
     setShowModal(true)
 
   } catch (error) {
-    console.error(error)
+    console.error("Gemini Error:", error.message)
   }
 }
 
@@ -165,6 +165,9 @@ function HistoryPage() {
             <h3 className="font-semibold mb-2">
                 Explanation
             </h3>
+            <p className="bg-gray-800 rounded-lg p-4 mb-6 whitespace-pre-wrap">
+                {selectedSession.result?.explanation || "No explanation available"}
+            </p>
 
             <h3 className="font-semibold mb-2">
                 Fixed Code
@@ -174,9 +177,7 @@ function HistoryPage() {
                 {selectedSession.result?.fixedCode || "No fixed code available"}
             </pre>
 
-            <p className="bg-gray-800 rounded-lg p-4 mb-6 whitespace-pre-wrap">
-                {selectedSession.result?.explanation || "No explanation available"}
-            </p>
+            
 
             <h3 className="font-semibold mb-2">
     Bugs Found

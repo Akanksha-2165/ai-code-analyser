@@ -37,11 +37,16 @@ export default function EditorPage() {
     setResult(data)
 
   } catch (err) {
-    const errorMsg = err.response?.data?.message || err.message || 'Analysis failed'
-    setError(errorMsg)  // Show to user
-    setResult(null)
-    console.error(err)
-  } finally {
+  console.error(err)
+
+  const errorMsg =
+    err.response?.data?.message ||
+    err.message ||
+    "Analysis failed"
+
+  setError(errorMsg)
+  setResult(null)
+}finally {
     setLoading(false)
   }
 }

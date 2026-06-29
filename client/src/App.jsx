@@ -1,7 +1,13 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import HomePage from './pages/HomePage'
-import EditorPage from './pages/EditorPage'
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+import Navbar from "./components/Navbar";
+
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import EditorPage from "./pages/EditorPage";
+import HistoryPage from "./pages/HistoryPage";
+
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   return (
@@ -10,8 +16,27 @@ export default function App() {
 
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/editor" element={<EditorPage />} />
+
+        <Route path="/login" element={<LoginPage />} />
+
+        <Route
+          path="/editor"
+          element={
+            <ProtectedRoute>
+              <EditorPage />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/history"
+          element={
+            <ProtectedRoute>
+              <HistoryPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
     </BrowserRouter>
-  )
+  );
 }

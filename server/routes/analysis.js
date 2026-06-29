@@ -1,39 +1,54 @@
- const express = require('express')
-const router = express.Router()
+const express = require("express");
+const router = express.Router();
 
-const { analyzeCode } = require('../services/geminiService')
+const { analyzeCode } = require("../services/geminiService");
+const { saveAnalysis } = require("../services/historyService");
 
-router.post('/analyze', async (req, res) => {
+router.post("/analyze", async (req, res) => {
   try {
-    const { code, language, type } = req.body
+    const { code, language, type, userId } = req.body;
 
     if (!code || !language || !type) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields'
-      })
+        message: "Missing required fields",
+      });
     }
 
-    const result = await analyzeCode(
-      code,
-      language,
-      type
-    )
+    // Ask Gemini
+    const result = await analyzeCode(code, language, type);
 
-    res.json({
+    // Save to history if logged in
+    if (userId) {
+      try {
+        await saveAnalysis(
+          userId,
+          code,
+          language,
+          type,
+          result
+        );
+
+        console.log("✅ Analysis saved");
+      } catch (saveError) {
+        console.error("Failed to save history:", saveError.message);
+      }
+    }
+
+    return res.json({
       success: true,
-      type: type,  // ADD THIS LINE
-      ...result
-    })
+      type,
+      ...result,
+    });
 
   } catch (error) {
-    console.error(error)
+    console.error("Gemini Error:", error.message);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: 'Analysis failed'
-    })
+      message: error.message || "Analysis failed",
+    });
   }
-})
+});
 
-module.exports = router
+module.exports = router;

@@ -15,8 +15,17 @@ export function useAuth() {
     const {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user ?? null)
-    })
+  setUser(session?.user ?? null)
+
+  if (session?.access_token) {
+    localStorage.setItem(
+      "access_token",
+      session.access_token
+    )
+  } else {
+    localStorage.removeItem("access_token")
+  }
+})
 
     return () => subscription.unsubscribe()
   }, [])
@@ -29,15 +38,25 @@ export function useAuth() {
   }
 
   async function signIn(email, password) {
-    return await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (data?.session) {
+    localStorage.setItem(
+      "access_token",
+      data.session.access_token
+    )
   }
 
+  return { data, error }
+}
+
   async function signOut() {
-    return await supabase.auth.signOut()
-  }
+  localStorage.removeItem("access_token")
+  return await supabase.auth.signOut()
+}
 
   return {
     user,

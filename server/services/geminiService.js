@@ -1,135 +1,172 @@
-const axios = require('axios')
+const axios = require("axios");
 
 const GEMINI_URL =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent'
+'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent'
 
 function buildPrompt(code, language, type) {
-  if (type === 'debug') {
+  if (type === "debug") {
     return `
-You are an expert ${language} debugger.
+You are a professional software engineer.
 
-Analyze the following code.
+Analyze the following ${language} code.
 
-Return ONLY valid JSON.
+You MUST respond ONLY with a valid JSON object.
 
-Format:
+Do NOT write markdown.
+Do NOT use \`\`\`.
+Do NOT write any explanation outside the JSON.
+Do NOT say "Hello".
+Do NOT say "Sure".
+
+Return EXACTLY this JSON format:
+
 {
   "bugsFound": [
     {
-      "line": number,
-      "issue": "description",
-      "severity": "low | medium | high"
+      "line": 1,
+      "issue": "Description of the issue",
+      "severity": "low"
     }
   ],
-  "fixedCode": "corrected code",
-  "explanation": "clear explanation"
+  "fixedCode": "Corrected code here",
+  "explanation": "Explain what was wrong and how it was fixed."
+}
+
+If there are no bugs, return:
+
+{
+  "bugsFound": [],
+  "fixedCode": "<original code>",
+  "explanation": "No bugs found."
 }
 
 Code:
+
 ${code}
-`
+`;
   }
 
   return `
-You are an expert programmer.
+You are a professional software engineer.
 
-Explain this ${language} code.
+Explain the following ${language} code.
 
 Return ONLY valid JSON.
 
-Format:
 {
   "bugsFound": [],
   "fixedCode": "",
-  "explanation": "clear explanation"
+  "explanation": "Detailed explanation"
 }
 
 Code:
+
 ${code}
-`
+`;
 }
 
 async function analyzeCode(code, language, type) {
-  const prompt = buildPrompt(code, language, type)
+  console.log("API KEY:", process.env.GEMINI_API_KEY);
+  const prompt = buildPrompt(code, language, type);
 
-  console.log('🔍 [GEMINI] Starting analysis...')
-  console.log('📝 [GEMINI] Type:', type)
-  console.log('💬 [GEMINI] Language:', language)
-  console.log('🔑 [GEMINI] API Key exists:', !!process.env.GEMINI_API_KEY)
-  console.log('🔑 [GEMINI] API Key starts with:', process.env.GEMINI_API_KEY?.slice(0, 10) + '...')
+  console.log("========== PROMPT ==========");
+  console.log(prompt);
+  console.log("============================");
+
+  console.log("🔍 Starting Gemini analysis...");
+  console.log("Language:", language);
+  console.log("Type:", type);
+
+  const requestData = {
+  contents: [
+    {
+      parts: [
+        {
+          text: prompt,
+        },
+      ],
+    },
+  ],
+  generationConfig: {
+    responseMimeType: "application/json",
+  },
+};
 
   try {
-    const url = `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`
-    console.log('🌐 [GEMINI] URL:', url.replace(process.env.GEMINI_API_KEY, 'HIDDEN_KEY'))
+    let response;
 
-    const requestData = {
-      contents: [
-        {
-          parts: [{ text: prompt }]
-        }
-      ]
+for (let i = 0; i < 3; i++) {
+  try {
+    response = await axios.post(
+      `${GEMINI_URL}?key=${process.env.GEMINI_API_KEY}`,
+      requestData,
+      { timeout: 60000 }
+    );
+    break;
+  } catch (err) {
+    if (err.response?.status !== 503 || i === 2) {
+      throw err;
     }
 
-    console.log('📤 [GEMINI] Sending request to Gemini API...')
+    console.log(`Retry ${i + 1}/3...`);
 
-    const response = await axios.post(url, requestData, {
-      timeout: 30000
-    })
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+}
 
-    console.log('✅ [GEMINI] Got response')
-    console.log('📊 [GEMINI] Status:', response.status)
-    console.log('📦 [GEMINI] Response structure:', {
-      hasCandidates: !!response.data.candidates,
-      candidatesLength: response.data.candidates?.length,
-      hasContent: !!response.data.candidates?.[0]?.content,
-      hasParts: !!response.data.candidates?.[0]?.content?.parts
-    })
+    const text =
+      response.data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    const text = response.data.candidates[0].content.parts[0].text
-
-    console.log('📝 [GEMINI] Raw response text (first 500 chars):', text.slice(0, 500))
+    console.log("========== RAW RESPONSE ==========");
+    console.log(text);
+    console.log("==================================");
 
     const cleaned = text
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim()
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
 
-    console.log('🧹 [GEMINI] Cleaned text (first 500 chars):', cleaned.slice(0, 500))
+    const parsed = JSON.parse(cleaned);
 
-    const parsed = JSON.parse(cleaned)
-
-    console.log('✅ [GEMINI] Successfully parsed JSON')
-    console.log('📊 [GEMINI] Parsed data keys:', Object.keys(parsed))
-
-    return parsed
-
+    return parsed;
   } catch (error) {
-    console.log('❌ [GEMINI] ERROR OCCURRED')
-    console.log('═'.repeat(50))
-    console.log('ERROR TYPE:', error.constructor.name)
-    console.log('ERROR MESSAGE:', error.message)
-    
+    console.log("========== GEMINI ERROR ==========");
+
     if (error.response) {
-      console.log('🔴 API Response Error')
-      console.log('STATUS:', error.response.status)
-      console.log('STATUS TEXT:', error.response.statusText)
-      console.log('HEADERS:', error.response.headers)
-      console.log('DATA:', JSON.stringify(error.response.data, null, 2))
-    } else if (error.request) {
-      console.log('🔴 No Response from Server')
-      console.log('REQUEST:', error.request)
+      console.log("Status:", error.response.status);
+      console.log("Response:", error.response.data);
     } else {
-      console.log('🔴 Error during request setup')
-      console.log('MESSAGE:', error.message)
+      console.log(error.message);
     }
 
-    console.log('═'.repeat(50))
+    console.log("==================================");
 
-    // Throw error so backend can catch it
-    throw error
+    if (error.code === "ECONNABORTED") {
+      throw new Error(
+        "Gemini request timed out. Please try again."
+      );
+    }
+
+    if (error.response?.status === 429) {
+      throw new Error(
+        "Gemini rate limit reached. Please wait a minute and try again."
+      );
+    }
+
+    if (error.response?.status === 503) {
+      throw new Error(
+        "Gemini is currently busy. Please try again shortly."
+      );
+    }
+
+    throw new Error(
+      error.response?.data?.error?.message ||
+        error.message ||
+        "Gemini request failed."
+    );
   }
 }
 
 module.exports = {
-  analyzeCode
-}
+  analyzeCode,
+};
